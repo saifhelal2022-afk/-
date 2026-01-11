@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة الثعبان - Snake Game</title>
+    <style>
+        /* تنسيق عام للصفحة */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* حاوية اللعبة الرئيسية */
+        .game-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 650px;
+            width: 100%;
+        }
+
+        /* عنوان اللعبة */
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* لوحة معلومات النقاط */
+        .score-board {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        /* منطقة Canvas */
+        #gameCanvas {
+            border: 4px solid #667eea;
+            border-radius: 10px;
+            display: block;
+            margin: 0 auto 20px;
+            background-color: #f0f0f0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* زر إعادة اللعبة */
+        #restartBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #restartBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        #restartBtn:active {
+            transform: translateY(0);
+        }
+
+        /* رسالة Game Over */
+        .game-over-message {
+            display: none;
+            background: #ff4757;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            font-weight: bold;
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* تعليمات اللعبة */
+        .instructions {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            color: #555;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .instructions h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🐍 لعبة الثعبان</h1>
+        
+        <!-- لوحة النقاط -->
+        <div class="score-board">
+            النقاط: <span id="score">0</span> | أعلى نقاط: <span id="highScore">0</span>
+        </div>
+
+        <!-- رسالة Game Over -->
+        <div id="gameOverMessage" class="game-over-message">
+            💥 انتهت اللعبة! 💥
+        </div>
+
+        <!-- Canvas لرسم اللعبة -->
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+
+        <!-- زر إعادة اللعبة -->
+        <button id="restartBtn">🔄 إعادة اللعبة</button>
+
+        <!-- تعليمات اللعبة -->
+        <div class="instructions">
+            <h3>📋 طريقة اللعب</h3>
+            <p>• استخدم أسهم لوحة المفاتيح (↑ ↓ ← →) للتحكم في اتجاه الثعبان</p>
+            <p>• اجمع الطعام الأحمر 🍎 لتزيد طول الثعبان والنقاط</p>
+            <p>• تجنب الاصطدام بالجدران أو بجسم الثعبان نفسه</p>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // إعدادات Canvas واللعبة
+        // ==========================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const highScoreElement = document.getElementById('highScore');
+        const restartBtn = document.getElementById('restartBtn');
+        const gameOverMessage = document.getElementById('gameOverMessage');
+
+        // حجم كل مربع في الشبكة
+        const gridSize = 20;
+        // عدد المربعات في كل صف/عمود
+        const tileCount = canvas.width / gridSize;
+
+        // ==========================================
+        // متغيرات اللعبة
+        // ==========================================
+        let snake = []; // مصفوفة تحتوي على أجزاء الثعبان
+        let snakeLength = 4; // طول الثعبان الابتدائي
+        let headX = 10; // موقع رأس الثعبان X
+        let headY = 10; // موقع رأس الثعبان Y
+        let velocityX = 0; // سرعة الحركة في اتجاه X
+        let velocityY = 0; // سرعة الحركة في اتجاه Y
+        let foodX = 15; // موقع الطعام X
+        let foodY = 15; // موقع الطعام Y
+        let score = 0; // النقاط الحالية
+        let highScore = localStorage.getItem('snakeHighScore') || 0; // أعلى نقاط محفوظة
+        let gameOver = false; // حالة اللعبة
+        let gameStarted = false; // هل بدأت اللعبة؟
+
+        // تحديث عرض أعلى نقاط عند بدء اللعبة
+        highScoreElement.textContent = highScore;
+
+        // ==========================================
+        // دالة رسم اللعبة (Game Loop)
+        // ==========================================
+        function drawGame() {
+            if (!gameStarted) {
+                // إذا لم تبدأ اللعبة بعد، اعرض شاشة البداية
+                drawStartScreen();
+                return;
+            }
+
+            if (gameOver) {
+                // إذا انتهت اللعبة، أوقف التحديث
+                return;
+            }
+
+            // تحديث موقع الثعبان
+            updateSnakePosition();
+
+            // التحقق من التصادمات
+            checkCollisions();
+
+            // التحقق من أكل الطعام
+            checkFoodCollision();
+
+            // مسح Canvas
+            clearCanvas();
+
+            // رسم الشبكة
+            drawGrid();
+
+            // رسم الطعام
+            drawFood();
+
+            // رسم الثعبان
+            drawSnake();
+
+            // رسم اللعبة مرة أخرى بعد 100ms (سرعة اللعبة)
+            setTimeout(drawGame, 100);
+        }
+
+        // ==========================================
+        // رسم شاشة البداية
+        // ==========================================
+        function drawStartScreen() {
+            clearCanvas();
+            drawGrid();
+            
+            // رسم الثعبان والطعام في الموقع الابتدائي
+            drawFood();
+            drawSnake();
+
+            // رسم نص البداية
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 30px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('اضغط على أي سهم للبدء', canvas.width / 2, canvas.height / 2);
+            
+            ctx.font = '20px Arial';
+            ctx.fillText('استخدم الأسهم للتحكم', canvas.width / 2, canvas.height / 2 + 40);
+        }
+
+        // ==========================================
+        // مسح Canvas
+        // ==========================================
+        function clearCanvas() {
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // ==========================================
+        // رسم الشبكة (اختياري - للمظهر)
+        // ==========================================
+        function drawGrid() {
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 0.5;
+            
+            for (let i = 0; i < tileCount; i++) {
+                // خطوط عمودية
+                ctx.beginPath();
+                ctx.moveTo(i * gridSize, 0);
+                ctx.lineTo(i * gridSize, canvas.height);
+                ctx.stroke();
+                
+                // خطوط أفقية
+                ctx.beginPath();
+                ctx.moveTo(0, i * gridSize);
+                ctx.lineTo(canvas.width, i * gridSize);
+                ctx.stroke();
+            }
+        }
+
+        // ==========================================
+        // تحديث موقع الثعبان
+        // ==========================================
+        function updateSnakePosition() {
+            // تحديث موقع الرأس بناءً على السرعة
+            headX += velocityX;
+            headY += velocityY;
+        }
+
+        // ==========================================
+        // رسم الثعبان
+        // ==========================================
+        function drawSnake() {
+            // إضافة موقع الرأس الجديد إلى المصفوفة
+            snake.push({ x: headX, y: headY });
+
+            // إزالة الذيل إذا كان الثعبان أطول من المفروض
+            while (snake.length > snakeLength) {
+                snake.shift();
+            }
+
+            // رسم كل جزء من الثعبان
+            snake.forEach((segment, index) => {
+                if (index === snake.length - 1) {
+                    // رأس الثعبان - لون مختلف
+                    ctx.fillStyle = '#2ecc71';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#2ecc71';
+                } else {
+                    // جسم الثعبان
+                    ctx.fillStyle = '#27ae60';
+                    ctx.shadowBlur = 5;
+                    ctx.shadowColor = '#27ae60';
+                }
+
+                // رسم المربع مع حواف مستديرة
+                const x = segment.x * gridSize;
+                const y = segment.y * gridSize;
+                ctx.beginPath();
+                ctx.roundRect(x + 2, y + 2, gridSize - 4, gridSize - 4, 5);
+                ctx.fill();
+            });
+
+            // إعادة تعيين الظل
+            ctx.shadowBlur = 0;
+        }
+
+        // ==========================================
+        // رسم الطعام
+        // ==========================================
+        function drawFood() {
+            // رسم الطعام كدائرة حمراء
+            ctx.fillStyle = '#e74c3c';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#e74c3c';
+            
+            const x = foodX * gridSize + gridSize / 2;
+            const y = foodY * gridSize + gridSize / 2;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, gridSize / 2 - 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // إعادة تعيين الظل
+            ctx.shadowBlur = 0;
+        }
+
+        // ==========================================
+        // التحقق من أكل الطعام
+        // ==========================================
+        function checkFoodCollision() {
+            if (headX === foodX && headY === foodY) {
+                // الثعبان أكل الطعام!
+                snakeLength++; // زيادة طول الثعبان
+                score += 10; // زيادة النقاط
+                scoreElement.textContent = score;
+                
+                // تحديث أعلى نقاط إذا لزم الأمر
+                if (score > highScore) {
+                    highScore = score;
+                    highScoreElement.textContent = highScore;
+                    localStorage.setItem('snakeHighScore', highScore);
+                }
+                
+                // وضع الطعام في موقع جديد عشوائي
+                placeFood();
+            }
+        }
+
+        // ==========================================
+        // وضع الطعام في موقع عشوائي
+        // ==========================================
+        function placeFood() {
+            // اختيار موقع عشوائي
+            foodX = Math.floor(Math.random() * tileCount);
+            foodY = Math.floor(Math.random() * tileCount);
+            
+            // التحقق من أن الطعام لا يظهر على جسم الثعبان
+            const onSnake = snake.some(segment => segment.x === foodX && segment.y === foodY);
+            
+            if (onSnake) {
+                // إذا كان على الثعبان، اختر موقعاً آخر
+                placeFood();
+            }
+        }
+
+        // ==========================================
+        // التحقق من التصادمات
+        // ==========================================
+        function checkCollisions() {
+            // التصادم مع الجدران
+            if (headX < 0 || headX >= tileCount || headY < 0 || headY >= tileCount) {
+                endGame();
+                return;
+            }
+
+            // التصادم مع جسم الثعبان نفسه
+            for (let i = 0; i < snake.length - 1; i++) {
+                if (snake[i].x === headX && snake[i].y === headY) {
+                    endGame();
+                    return;
+                }
+            }
+        }
+
+        // ==========================================
+        // إنهاء اللعبة
+        // ==========================================
+        function endGame() {
+            gameOver = true;
+            gameOverMessage.style.display = 'block';
+        }
+
+        // ==========================================
+        // إعادة تشغيل اللعبة
+        // ==========================================
+        function restartGame() {
+            // إعادة تعيين جميع المتغيرات
+            snake = [];
+            snakeLength = 4;
+            headX = 10;
+            headY = 10;
+            velocityX = 0;
+            velocityY = 0;
+            score = 0;
+            gameOver = false;
+            gameStarted = false;
+            
+            scoreElement.textContent = score;
+            gameOverMessage.style.display = 'none';
+            
+            // وضع الطعام في موقع جديد
+            placeFood();
+            
+            // بدء اللعبة من جديد
+            drawGame();
+        }
+
+        // ==========================================
+        // معالجة ضغط الأزرار
+        // ==========================================
+        document.addEventListener('keydown', (event) => {
+            // بدء اللعبة عند أول ضغطة سهم
+            if (!gameStarted && (event.key === 'ArrowUp' || event.key === 'ArrowDown' || 
+                                 event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+                gameStarted = true;
+                velocityX = 1; // بدء الحركة إلى اليمين
+                velocityY = 0;
+            }
+
+            // تغيير اتجاه الثعبان بناءً على السهم المضغوط
+            switch (event.key) {
+                case 'ArrowUp':
+                    // لا تسمح بالعودة للخلف (إذا كان يتحرك للأسفل)
+                    if (velocityY !== 1) {
+                        velocityX = 0;
+                        velocityY = -1;
+                    }
+                    break;
+                case 'ArrowDown':
+                    // لا تسمح بالعودة للخلف (إذا كان يتحرك للأعلى)
+                    if (velocityY !== -1) {
+                        velocityX = 0;
+                        velocityY = 1;
+                    }
+                    break;
+                case 'ArrowLeft':
+                    // لا تسمح بالعودة للخلف (إذا كان يتحرك لليمين)
+                    if (velocityX !== 1) {
+                        velocityX = -1;
+                        velocityY = 0;
+                    }
+                    break;
+                case 'ArrowRight':
+                    // لا تسمح بالعودة للخلف (إذا كان يتحرك لليسار)
+                    if (velocityX !== -1) {
+                        velocityX = 1;
+                        velocityY = 0;
+                    }
+                    break;
+            }
+        });
+
+        // ==========================================
+        // معالجة زر إعادة اللعبة
+        // ==========================================
+        restartBtn.addEventListener('click', restartGame);
+
+        // ==========================================
+        // بدء اللعبة لأول مرة
+        // ==========================================
+        drawGame();
+    </script>
+</body>
+</html>
