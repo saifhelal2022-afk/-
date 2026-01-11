@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة الثعبان البسيطة</title>
+    <style>
+        /* تنسيق عام */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        /* حاوية اللعبة */
+        .game-container {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        /* عنوان اللعبة */
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        /* عرض النقاط */
+        .score {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #666;
+        }
+
+        /* Canvas اللعبة */
+        #gameCanvas {
+            border: 2px solid #333;
+            background-color: #fff;
+            display: block;
+            margin: 0 auto 15px;
+        }
+
+        /* زر إعادة اللعبة */
+        #restartBtn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #restartBtn:hover {
+            background-color: #45a049;
+        }
+
+        /* رسالة Game Over */
+        #gameOver {
+            color: red;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🐍 لعبة الثعبان</h1>
+        <div class="score">
+            النقاط: <span id="score">0</span>
+        </div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <button id="restartBtn">إعادة اللعبة</button>
+        <div id="gameOver"></div>
+        <p>استخدم أسهم لوحة المفاتيح للتحكم</p>
+    </div>
+
+    <script>
+        // إعدادات Canvas
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const restartBtn = document.getElementById('restartBtn');
+        const gameOverElement = document.getElementById('gameOver');
+
+        // حجم كل مربع في الشبكة
+        const box = 20;
+        
+        // الثعبان (مصفوفة من المواقع)
+        let snake = [
+            {x: 9 * box, y: 10 * box}
+        ];
+        
+        // الطعام
+        let food = {
+            x: Math.floor(Math.random() * 19 + 1) * box,
+            y: Math.floor(Math.random() * 19 + 1) * box
+        };
+
+        // اتجاه الثعبان
+        let d;
+        
+        // النقاط
+        let score = 0;
+        
+        // حالة اللعبة
+        let gameRunning = true;
+
+        // رسم اللعبة
+        function drawGame() {
+            // مسح الشاشة
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // رسم الثعبان
+            ctx.fillStyle = '#4CAF50';
+            for (let part of snake) {
+                ctx.fillRect(part.x, part.y, box, box);
+            }
+
+            // رسم الطعام
+            ctx.fillStyle = '#FF5722';
+            ctx.fillRect(food.x, food.y, box, box);
+
+            // موقع رأس الثعبان الحالي
+            let snakeX = snake[0].x;
+            let snakeY = snake[0].y;
+
+            // التحقق من الاتجاه
+            if (d === 'LEFT') snakeX -= box;
+            if (d === 'UP') snakeY -= box;
+            if (d === 'RIGHT') snakeX += box;
+            if (d === 'DOWN') snakeY += box;
+
+            // التحقق من أكل الطعام
+            if (snakeX === food.x && snakeY === food.y) {
+                score++;
+                scoreElement.textContent = score;
+                
+                // إنشاء طعام جديد
+                food = {
+                    x: Math.floor(Math.random() * 19 + 1) * box,
+                    y: Math.floor(Math.random() * 19 + 1) * box
+                };
+            } else {
+                // إزالة الذيل إذا لم يأكل طعام
+                snake.pop();
+            }
+
+            // إنشاء رأس جديد
+            let newHead = {x: snakeX, y: snakeY};
+
+            // التحقق من اصطدام بالجدران
+            if (snakeX < 0 || snakeX >= canvas.width || 
+                snakeY < 0 || snakeY >= canvas.height) {
+                gameOver();
+                return;
+            }
+
+            // التحقق من اصطدام بالنفس
+            for (let part of snake) {
+                if (snakeX === part.x && snakeY === part.y) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            // إضافة الرأس الجديد
+            snake.unshift(newHead);
+
+            // رسم اللعبة مرة أخرى
+            if (gameRunning) {
+                setTimeout(drawGame, 150);
+            }
+        }
+
+        // إنهاء اللعبة
+        function gameOver() {
+            gameRunning = false;
+            gameOverElement.textContent = 'انتهت اللعبة! النقاط: ' + score;
+        }
+
+        // إعادة تشغيل اللعبة
+        function restartGame() {
+            snake = [
+                {x: 9 * box, y: 10 * box}
+            ];
+            food = {
+                x: Math.floor(Math.random() * 19 + 1) * box,
+                y: Math.floor(Math.random() * 19 + 1) * box
+            };
+            d = null;
+            score = 0;
+            scoreElement.textContent = score;
+            gameOverElement.textContent = '';
+            gameRunning = true;
+            drawGame();
+        }
+
+        // التحكم بالثعبان
+        document.addEventListener('keydown', (event) => {
+            if (!gameRunning) return;
+
+            const LEFT_KEY = 37;
+            const RIGHT_KEY = 39;
+            const UP_KEY = 38;
+            const DOWN_KEY = 40;
+
+            const keyPressed = event.keyCode;
+            const goingUp = d === 'UP';
+            const goingDown = d === 'DOWN';
+            const goingRight = d === 'RIGHT';
+            const goingLeft = d === 'LEFT';
+
+            // منع الحركة للخلف
+            if (keyPressed === LEFT_KEY && !goingRight) {
+                d = 'LEFT';
+            }
+            if (keyPressed === UP_KEY && !goingDown) {
+                d = 'UP';
+            }
+            if (keyPressed === RIGHT_KEY && !goingLeft) {
+                d = 'RIGHT';
+            }
+            if (keyPressed === DOWN_KEY && !goingUp) {
+                d = 'DOWN';
+            }
+        });
+
+        // زر إعادة اللعبة
+        restartBtn.addEventListener('click', restartGame);
+
+        // بدء اللعبة
+        drawGame();
+    </script>
+</body>
+</html>
